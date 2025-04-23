@@ -25,7 +25,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace com.circuskitchens.flutter_datawedge
+    namespace "com.circuskitchens.flutter_datawedge"
     compileSdkVersion 31
 
     sourceSets {
