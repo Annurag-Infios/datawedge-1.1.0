@@ -3,149 +3,78 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_datawedge/flutter_datawedge.dart';
-import 'package:flutter_datawedge/models/scan_result.dart';
-import 'package:flutter_datawedge/models/scanner_status.dart';
+import 'package:flutter_datawedge_example/button_tab_view.dart';
+
+import 'log_tab_view.dart';
 
 void main() {
-  runApp(MaterialApp(
+  runApp(
+    MaterialApp(
       title: 'Flutter DataWedge Example',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyApp()));
+      home: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   @override
-  _MyAppState createState() => _MyAppState();
+  MyAppState createState() => MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  late StreamSubscription<ScanResult> onScanResultListener;
-  late StreamSubscription<ScannerStatus> onScannerStatusListener;
-  List<ScanResult> scanResults = [];
-  String _lastStatus = '';
+class MyAppState extends State<MyApp> {
   late FlutterDataWedge fdw;
+  Future<void>? initScannerResult;
 
   @override
   void initState() {
     super.initState();
-    initScanner();
+    initScannerResult = initScanner();
   }
 
-  void initScanner() {
+  Future<void> initScanner() async {
     if (Platform.isAndroid) {
-      fdw = FlutterDataWedge(
-          profileName: 'FlutterDataWedge', listenToScannerStatus: true);
-      onScanResultListener = fdw.onScanResult
-          .listen((result) => setState(() => scanResults.add(result)));
-      onScannerStatusListener = fdw.onScannerStatus.listen(
-          (status) => setState(() => _lastStatus = status.status.value));
+      fdw = FlutterDataWedge();
+      await fdw.initialize();
+      await fdw.createDefaultProfile(profileName: 'Example app profile');
     }
   }
 
   @override
-  void dispose() {
-    onScanResultListener.cancel();
-    onScannerStatusListener.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Flutter DataWedge Example'),
-        ),
-        body: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Text('Last codes:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-              SizedBox(
-                width: double.infinity,
-                height: MediaQuery.of(context).size.height * 0.4,
-                child: ListView.separated(
-                  reverse: true,
-                  itemCount: scanResults.length,
-                  itemBuilder: (context, index) => ListTile(
-                    title: Text('$index: ${scanResults[index].data}'),
-                  ),
-                  separatorBuilder: (context, index) => const Divider(),
+    return FutureBuilder(
+        future: initScannerResult,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          return DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              appBar: AppBar(
+                title: const Text('Flutter DataWedge Example'),
+                bottom: TabBar(
+                  tabs: [
+                    Tab(text: 'Scan'),
+                    Tab(text: 'Event Log'),
+                  ],
                 ),
               ),
-              Row(
+              body: TabBarView(
                 children: [
-                  Expanded(
-                    child: Text('Last status:',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 20)),
-                  ),
-                  Expanded(
-                    child: Text(_lastStatus,
-                        style: Theme.of(context).textTheme.headline5),
-                  ),
+                  ButtonTabView(fdw),
+                  LogTabView(fdw),
                 ],
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.enableScanner(true),
-                      child: Text('Enable Scanner'),
-                    ),
-                  ),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.enableScanner(false),
-                      child: Text('Disable Scanner'),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.activateScanner(true),
-                      child: Text('Activate Scanner'),
-                    ),
-                  ),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.activateScanner(false),
-                      child: Text('Deactivate Scanner'),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.scannerControl(true),
-                      child: Text('Scanner Control Activate'),
-                    ),
-                  ),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => fdw.scannerControl(false),
-                      child: Text('Scanner Control DeActivate'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            ),
+          );
+        });
   }
 }
